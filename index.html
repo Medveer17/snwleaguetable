@@ -3,141 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>League Tracker: Session View</title>
+    <title>League Tracker</title>
     <style>
-        :root { --primary: #1a73e8; --bg: #f8f9fa; --card: #ffffff; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        :root { --blue: #1a73e8; --gray: #f1f3f4; }
+        body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #fff; }
         
-        /* Layout Header */
-        header { background: var(--primary); color: white; padding: 15px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        /* Fixed Header */
+        header { background: var(--blue); color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
         
-        /* Main Container: Split screen on Desktop */
-        .main-container { display: flex; flex: 1; overflow: hidden; }
+        /* Main Layout */
+        .app-container { display: flex; flex: 1; overflow: hidden; }
         
-        /* Left Side: Scoring */
-        .inputs-section { flex: 1; overflow-y: auto; padding: 20px; border-right: 1px solid #ddd; }
+        /* Left Side: Matches (Scrollable) */
+        .inputs-pane { flex: 1; overflow-y: auto; padding: 20px; background: var(--gray); }
         
-        /* Right Side: Standings */
-        .table-section { width: 400px; background: white; padding: 20px; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
+        /* Right Side: Standings (Fixed) */
+        .standings-pane { width: 350px; padding: 20px; border-left: 1px solid #ddd; background: white; }
 
-        /* Mobile Adjustments */
-        @media (max-width: 800px) {
-            .main-container { flex-direction: column; overflow: visible; }
-            .inputs-section { overflow-y: visible; border-right: none; }
-            .table-section { width: auto; position: sticky; bottom: 0; border-top: 3px solid var(--primary); padding: 10px; height: 300px; overflow-y: auto; }
+        /* Mobile View */
+        @media (max-width: 768px) {
+            .app-container { flex-direction: column; overflow: visible; }
+            .standings-pane { width: auto; border-left: none; border-top: 4px solid var(--blue); position: sticky; bottom: 0; height: 250px; overflow-y: auto; }
         }
 
-        .session-block { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #e0e0e0; }
-        .session-title { font-weight: bold; color: #5f6368; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; font-size: 0.9rem; }
-
-        .match-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-bottom: 8px; }
-        .match-row input { width: 50px; padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 5px; font-size: 1.1rem; }
-        .team-label { font-size: 0.95rem; font-weight: 500; }
-        .t-right { text-align: right; padding-right: 10px; }
-        .t-left { text-align: left; padding-left: 10px; }
+        .session-card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .session-header { font-size: 0.8rem; font-weight: bold; color: #70757a; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #eee; }
+        
+        .match-line { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 10px 0; }
+        .match-line input { width: 45px; height: 35px; text-align: center; font-size: 1.1rem; border: 1px solid #ccc; border-radius: 4px; }
+        .team-name { font-size: 0.9rem; font-weight: 500; }
 
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; font-size: 0.8rem; color: #777; padding-bottom: 10px; border-bottom: 2px solid #eee; }
-        td { padding: 12px 5px; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
-        .pos { font-weight: bold; color: var(--primary); width: 25px; }
-        .pts-col { font-weight: bold; text-align: right; }
-        .gd-col { text-align: center; color: #666; }
+        th { text-align: left; font-size: 0.75rem; color: #5f6368; border-bottom: 2px solid var(--gray); padding-bottom: 5px; }
+        td { padding: 10px 0; border-bottom: 1px solid var(--gray); font-size: 0.9rem; }
+        .pts { font-weight: bold; text-align: right; color: var(--blue); }
+        .gd { text-align: center; color: #666; }
     </style>
 </head>
 <body>
 
 <header>
-    <h2 style="margin:0">League Master</h2>
+    <h3 style="margin:0">League Master</h3>
+    <button onclick="calculate()" style="background:white; color:var(--blue); border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold">Sync Table</button>
 </header>
 
-<div class="main-container">
-    <div class="inputs-section" id="match-inputs">
-        </div>
+<div class="app-container">
+    <div class="inputs-pane" id="match-list"></div>
 
-    <div class="table-section">
-        <h3 style="margin-top:0">Live Standings</h3>
+    <div class="standings-pane">
+        <h3 style="margin-top:0">Standings</h3>
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th style="width:25px">#</th>
                     <th>Team</th>
                     <th style="text-align:center">GD</th>
                     <th style="text-align:right">Pts</th>
                 </tr>
             </thead>
-            <tbody id="table-body">
-                </tbody>
+            <tbody id="table-body"></tbody>
         </table>
-        <button onclick="window.scrollTo(0,0)" style="margin-top:20px; width:100%; padding:10px; border:none; background:#eee; border-radius:5px; cursor:pointer" class="mobile-only">Back to Top</button>
     </div>
 </div>
 
 <script>
     const teams = ["Group A", "Group B", "Group C", "Group D"];
-    
-    // Organised by "Sessions" (2 matches each)
     const sessions = [
-        { name: "Session 1", matches: [{t1: "Group A", t2: "Group B"}, {t1: "Group C", t2: "Group D"}] },
-        { name: "Session 2", matches: [{t1: "Group A", t2: "Group C"}, {t1: "Group B", t2: "Group D"}] },
-        { name: "Session 3", matches: [{t1: "Group D", t2: "Group A"}, {t1: "Group C", t2: "Group B"}] },
-        { name: "Session 4 (Reverse)", matches: [{t1: "Group B", t2: "Group A"}, {t1: "Group D", t2: "Group C"}] },
-        { name: "Session 5 (Reverse)", matches: [{t1: "Group C", t2: "Group A"}, {t1: "Group D", t2: "Group B"}] },
-        { name: "Session 6 (Reverse)", matches: [{t1: "Group A", t2: "Group D"}, {t1: "Group B", t2: "Group C"}] }
+        { name: "Session 1", matches: [["Group A", "Group B"], ["Group C", "Group D"]] },
+        { name: "Session 2", matches: [["Group A", "Group C"], ["Group B", "Group D"]] },
+        { name: "Session 3", matches: [["Group D", "Group A"], ["Group C", "Group B"]] },
+        { name: "Session 4", matches: [["Group B", "Group A"], ["Group D", "Group C"]] },
+        { name: "Session 5", matches: [["Group C", "Group A"], ["Group D", "Group B"]] },
+        { name: "Session 6", matches: [["Group A", "Group D"], ["Group B", "Group C"]] }
     ];
 
-    const inputArea = document.getElementById('match-inputs');
-    let matchCounter = 0;
-
-    sessions.forEach(session => {
-        let html = `<div class="session-block"><div class="session-title">${session.name}</div>`;
-        session.matches.forEach(m => {
+    // Build the UI
+    const list = document.getElementById('match-list');
+    let mIdx = 0;
+    sessions.forEach(s => {
+        let html = `<div class="session-card"><div class="session-header">${s.name}</div>`;
+        s.matches.forEach(m => {
             html += `
-                <div class="match-row">
-                    <span class="team-label t-right">${m.t1}</span>
+                <div class="match-line">
+                    <span class="team-name" style="text-align:right; margin-right:10px">${m[0]}</span>
                     <div style="display:flex; align-items:center">
-                        <input type="number" id="m${matchCounter}s1" oninput="calculateStandings()" placeholder="0">
+                        <input type="number" id="m${mIdx}s1" onkeyup="calculate()" onchange="calculate()">
                         <span style="margin:0 5px">:</span>
-                        <input type="number" id="m${matchCounter}s2" oninput="calculateStandings()" placeholder="0">
+                        <input type="number" id="m${mIdx}s2" onkeyup="calculate()" onchange="calculate()">
                     </div>
-                    <span class="team-label t-left">${m.t2}</span>
+                    <span class="team-name" style="margin-left:10px">${m[1]}</span>
                 </div>
             `;
-            m.id = matchCounter; // Assign ID to match object for later
-            matchCounter++;
+            mIdx++;
         });
         html += `</div>`;
-        inputArea.innerHTML += html;
+        list.innerHTML += html;
     });
 
-    function calculateStandings() {
+    function calculate() {
         let stats = {};
-        let h2h = {}; // Head to Head
+        let h2h = {};
         teams.forEach(t => {
             stats[t] = { name: t, pts: 0, gd: 0 };
             h2h[t] = {};
             teams.forEach(opp => h2h[t][opp] = 0);
         });
 
-        let flatMatches = sessions.flatMap(s => s.matches);
-        flatMatches.forEach(m => {
-            const s1 = parseInt(document.getElementById(`m${m.id}s1`).value);
-            const s2 = parseInt(document.getElementById(`m${m.id}s2`).value);
+        let currentIdx = 0;
+        sessions.forEach(s => {
+            s.matches.forEach(m => {
+                const s1 = parseInt(document.getElementById(`m${currentIdx}s1`).value);
+                const s2 = parseInt(document.getElementById(`m${currentIdx}s2`).value);
 
-            if (!isNaN(s1) && !isNaN(s2)) {
-                stats[m.t1].gd += (s1 - s2);
-                stats[m.t2].gd += (s2 - s1);
-                h2h[m.t1][m.t2] += s1;
-                h2h[m.t2][m.t1] += s2;
+                if (!isNaN(s1) && !isNaN(s2)) {
+                    stats[m[0]].gd += (s1 - s2);
+                    stats[m[1]].gd += (s2 - s1);
+                    h2h[m[0]][m[1]] += s1;
+                    h2h[m[1]][m[0]] += s2;
 
-                if (s1 > s2) { stats[m.t1].pts += 3; stats[m.t2].pts += 1; }
-                else if (s2 > s1) { stats[m.t2].pts += 3; stats[m.t1].pts += 1; }
-                else { stats[m.t1].pts += 1; stats[m.t2].pts += 1; }
-            }
+                    if (s1 > s2) { stats[m[0]].pts += 3; stats[m[1]].pts += 1; }
+                    else if (s2 > s1) { stats[m[1]].pts += 3; stats[m[0]].pts += 1; }
+                    else { stats[m[0]].pts += 1; stats[m[1]].pts += 1; }
+                }
+                currentIdx++;
+            });
         });
 
         const sorted = Object.values(stats).sort((a, b) => {
             if (b.pts !== a.pts) return b.pts - a.pts;
-            // H2H logic
             const aVsB = h2h[a.name][b.name];
             const bVsA = h2h[b.name][a.name];
             if (aVsB !== bVsA) return bVsA - aVsB;
@@ -151,13 +144,14 @@
                 <tr>
                     <td class="pos">${i+1}</td>
                     <td>${team.name}</td>
-                    <td class="gd-col">${team.gd > 0 ? '+'+team.gd : team.gd}</td>
-                    <td class="pts-col">${team.pts}</td>
+                    <td class="gd">${team.gd > 0 ? '+'+team.gd : team.gd}</td>
+                    <td class="pts">${team.pts}</td>
                 </tr>
             `;
         });
     }
-    calculateStandings();
+    // Initial load
+    calculate();
 </script>
 </body>
 </html>
