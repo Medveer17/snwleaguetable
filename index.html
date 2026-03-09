@@ -3,117 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>League Master Pro</title>
+    <title>SNW League Master</title>
     <style>
-        :root { --blue: #1a73e8; --gray: #f1f3f4; --border: #dadce0; }
+        :root { --blue: #1a73e8; --gray: #f8f9fa; --border: #dadce0; }
         body { font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: white; color: #3c4043; }
-        
         header { background: var(--blue); color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10; }
-        
         .app-container { display: flex; flex: 1; overflow: hidden; }
-        
-        /* Left Side: Match Entries */
-        .inputs-pane { flex: 1; overflow-y: auto; padding: 20px; background: var(--gray); }
-        
-        /* Right Side: Standings */
-        .standings-pane { width: 360px; padding: 20px; border-left: 1px solid var(--border); background: white; position: relative; }
-
-        /* Mobile Responsive Logic */
+        .inputs-pane { flex: 1; overflow-y: auto; padding: 20px; background: #f1f3f4; }
+        .standings-pane { width: 360px; padding: 20px; border-left: 1px solid var(--border); background: white; }
         @media (max-width: 800px) {
             .app-container { flex-direction: column; overflow: visible; }
-            .standings-pane { width: auto; border-left: none; border-top: 4px solid var(--blue); position: sticky; bottom: 0; height: 260px; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); }
+            .standings-pane { width: auto; border-top: 4px solid var(--blue); position: sticky; bottom: 0; height: 280px; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); overflow-y: auto; }
             .desktop-only { display: none; }
         }
-
-        /* Hide "Back to Top" on Desktop */
-        @media (min-width: 801px) {
-            .mobile-only-btn { display: none; }
-        }
-
+        @media (min-width: 801px) { .mobile-only-btn { display: none; } }
         .session-card { background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); }
-        .session-header { font-size: 0.75rem; font-weight: bold; color: #70757a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-        
+        .session-header { font-size: 0.75rem; font-weight: bold; color: #70757a; text-transform: uppercase; margin-bottom: 12px; }
         .match-line { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 12px 0; }
-        .match-line input { width: 48px; height: 38px; text-align: center; font-size: 1.1rem; border: 1px solid var(--border); border-radius: 6px; outline-color: var(--blue); }
-        
-        /* Remove arrows/spinners from number inputs */
+        .match-line input { width: 48px; height: 38px; text-align: center; font-size: 1.1rem; border: 1px solid var(--border); border-radius: 6px; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-
-        .team-name { font-size: 0.95rem; font-weight: 500; }
-        
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; font-size: 0.7rem; color: #80868b; text-transform: uppercase; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        th { text-align: left; font-size: 0.7rem; color: #80868b; text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
         td { padding: 12px 0; border-bottom: 1px solid #f1f3f4; font-size: 0.95rem; }
         .pts { font-weight: bold; text-align: right; color: var(--blue); }
-        .gd { text-align: center; color: #5f6368; font-variant-numeric: tabular-nums; }
-
+        .gd { text-align: center; color: #5f6368; }
         .btn-top { background: #f1f3f4; border: 1px solid var(--border); padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: 500; }
     </style>
 </head>
 <body>
 
 <header>
-    <h3 style="margin:0">League Master</h3>
-    <span class="desktop-only" style="font-size: 0.8rem; opacity: 0.9;">Auto-syncing active</span>
+    <h3 style="margin:0">SNW League Master</h3>
+    <div id="status" style="font-size: 0.75rem; opacity: 0.8;">Connecting...</div>
 </header>
 
 <div class="app-container">
-    <div class="inputs-pane" id="match-list">
-        </div>
-
+    <div class="inputs-pane" id="match-list"></div>
     <div class="standings-pane">
         <h3 style="margin-top:0; font-size: 1.1rem;">Live Standings</h3>
         <table>
             <thead>
-                <tr>
-                    <th style="width:30px">#</th>
-                    <th>Team</th>
-                    <th style="text-align:center">GD</th>
-                    <th style="text-align:right">Pts</th>
-                </tr>
+                <tr><th style="width:30px">#</th><th>Team</th><th style="text-align:center">GD</th><th style="text-align:right">Pts</th></tr>
             </thead>
             <tbody id="table-body"></tbody>
         </table>
-        
         <button class="mobile-only-btn btn-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑ Back to Scores</button>
     </div>
 </div>
 
-<script>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDJCJIPGZnZhCvLxIx-DhcljlzmhY8M5c4",
+        authDomain: "snwleaguetable.firebaseapp.com",
+        databaseURL: "https://snwleaguetable-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "snwleaguetable",
+        storageBucket: "snwleaguetable.firebasestorage.app",
+        messagingSenderId: "901506392078",
+        appId: "1:901506392078:web:0a567e0205471be4791c5f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const scoresRef = ref(db, 'scores');
+
     const teams = ["Group A", "Group B", "Group C", "Group D"];
     const sessions = [
         { name: "Session 1", matches: [["Group A", "Group B"], ["Group C", "Group D"]] },
         { name: "Session 2", matches: [["Group A", "Group C"], ["Group B", "Group D"]] },
         { name: "Session 3", matches: [["Group D", "Group A"], ["Group C", "Group B"]] },
-        { name: "Session 4 (Reverse)", matches: [["Group B", "Group A"], ["Group D", "Group C"]] },
-        { name: "Session 5 (Reverse)", matches: [["Group C", "Group A"], ["Group D", "Group B"]] },
-        { name: "Session 6 (Reverse)", matches: [["Group A", "Group D"], ["Group B", "Group C"]] }
+        { name: "Session 4", matches: [["Group B", "Group A"], ["Group D", "Group C"]] },
+        { name: "Session 5", matches: [["Group C", "Group A"], ["Group D", "Group B"]] },
+        { name: "Session 6", matches: [["Group A", "Group D"], ["Group B", "Group C"]] }
     ];
 
     const list = document.getElementById('match-list');
     let mIdx = 0;
-
     sessions.forEach(s => {
         let html = `<div class="session-card"><div class="session-header">${s.name}</div>`;
         s.matches.forEach(m => {
             html += `
                 <div class="match-line">
-                    <span class="team-name" style="text-align:right; margin-right:12px">${m[0]}</span>
+                    <span style="text-align:right; font-weight:500; font-size:0.9rem">${m[0]}</span>
                     <div style="display:flex; align-items:center">
-                        <input type="number" id="m${mIdx}s1" oninput="calculate()">
+                        <input type="number" id="m${mIdx}s1" data-idx="${mIdx}" data-side="s1">
                         <span style="margin:0 8px; color:#bdc1c6">:</span>
-                        <input type="number" id="m${mIdx}s2" oninput="calculate()">
+                        <input type="number" id="m${mIdx}s2" data-idx="${mIdx}" data-side="s2">
                     </div>
-                    <span class="team-name" style="margin-left:12px">${m[1]}</span>
-                </div>
-            `;
+                    <span style="font-weight:500; font-size:0.9rem">${m[1]}</span>
+                </div>`;
             mIdx++;
         });
-        html += `</div>`;
-        list.innerHTML += html;
+        list.innerHTML += html + `</div>`;
     });
 
-    function calculate() {
+    // Handle Input and Save to Firebase
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const idx = e.target.getAttribute('data-idx');
+            const side = e.target.getAttribute('data-side');
+            const val = e.target.value;
+            set(ref(db, `scores/m${idx}/${side}`), val);
+        });
+    });
+
+    // Listen for Database Changes
+    onValue(scoresRef, (snapshot) => {
+        const data = snapshot.val() || {};
+        document.getElementById('status').innerText = "🟢 Live Sync Active";
+        
         let stats = {};
         let h2h = {};
         teams.forEach(t => {
@@ -125,18 +125,20 @@
         let currentIdx = 0;
         sessions.forEach(s => {
             s.matches.forEach(m => {
-                const val1 = document.getElementById(`m${currentIdx}s1`).value;
-                const val2 = document.getElementById(`m${currentIdx}s2`).value;
+                const mData = data[`m${currentIdx}`] || {};
+                const s1Val = mData.s1 || "";
+                const s2Val = mData.s2 || "";
 
-                if (val1 !== "" && val2 !== "") {
-                    const s1 = parseInt(val1);
-                    const s2 = parseInt(val2);
+                // Update UI only if the user isn't currently typing in that box
+                const input1 = document.getElementById(`m${currentIdx}s1`);
+                const input2 = document.getElementById(`m${currentIdx}s2`);
+                if (document.activeElement !== input1) input1.value = s1Val;
+                if (document.activeElement !== input2) input2.value = s2Val;
 
-                    stats[m[0]].gd += (s1 - s2);
-                    stats[m[1]].gd += (s2 - s1);
-                    h2h[m[0]][m[1]] += s1;
-                    h2h[m[1]][m[0]] += s2;
-
+                if (s1Val !== "" && s2Val !== "") {
+                    const s1 = parseInt(s1Val); const s2 = parseInt(s2Val);
+                    stats[m[0]].gd += (s1 - s2); stats[m[1]].gd += (s2 - s1);
+                    h2h[m[0]][m[1]] += s1; h2h[m[1]][m[0]] += s2;
                     if (s1 > s2) { stats[m[0]].pts += 3; stats[m[1]].pts += 1; }
                     else if (s2 > s1) { stats[m[1]].pts += 3; stats[m[0]].pts += 1; }
                     else { stats[m[0]].pts += 1; stats[m[1]].pts += 1; }
@@ -147,9 +149,8 @@
 
         const sorted = Object.values(stats).sort((a, b) => {
             if (b.pts !== a.pts) return b.pts - a.pts;
-            const aVsB = h2h[a.name][b.name];
-            const bVsA = h2h[b.name][a.name];
-            if (aVsB !== bVsA) return bVsA - aVsB;
+            const h2hDiff = (h2h[b.name][a.name] - h2h[a.name][b.name]);
+            if (h2hDiff !== 0) return h2hDiff;
             return b.gd - a.gd;
         });
 
@@ -162,11 +163,9 @@
                     <td><strong>${team.name}</strong></td>
                     <td class="gd">${team.gd > 0 ? '+'+team.gd : team.gd}</td>
                     <td class="pts">${team.pts}</td>
-                </tr>
-            `;
+                </tr>`;
         });
-    }
-    calculate();
+    });
 </script>
 </body>
 </html>
